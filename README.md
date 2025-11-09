@@ -14,7 +14,7 @@ Total time per tag
 
 >The white note icon shows history of actions which should be able to revert from history.  Ctrl+Z, and Ctrl+Y windows undo, redo. command+z, Shift+command+Z(Mac)
 
->right clicking edit. brings up edit event, this is where you can add titles, tags, change color. add images adjust time. notify(only tested on mac, I need to work on this for windows?), you can also repeat or make it always an event that happens.
+>right clicking edit. brings up edit event, this is where you can add titles, tags, change color. add images (**NOTE ADD A uploads folder, i don't think i coded it to make one) adjust time. notify(only tested on mac, I need to work on this for windows?), you can also repeat or make it always an event that happens.
 
 >right click lock makes it so you can't delete or move until unlocked.
 
