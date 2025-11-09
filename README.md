@@ -2,6 +2,8 @@
 
 This repository contains a PySide6-based day-view calendar app (`ical.py`) and a couple of fixed copies that ensure the day view opens **centered on the current time** when the window appears.
 
+Total time per tag
+
 > toggle, Magnet emoji, lets you snap to current time or nearest event block, it also snaps time in blocks. also good for laying out a bunch of blocks at a time.
 
 > toggle, Hour Glass lets you snap in increments of Time Size.
@@ -10,7 +12,7 @@ This repository contains a PySide6-based day-view calendar app (`ical.py`) and a
 
 >The white note icon shows history of actions which should be able to revert from history.  Ctrl+Z, and Ctrl+Y windows undo, redo. command+z, Shift+command+Z(Mac)
 
->right clicking edit. brings up edit event, this is where you can add titles, tags, change color. adjust time. notify(only tested on mac, I need to work on this for windows?), you can also repeat or make it always an event that happens.
+>right clicking edit. brings up edit event, this is where you can add titles, tags, change color. add images adjust time. notify(only tested on mac, I need to work on this for windows?), you can also repeat or make it always an event that happens.
 
 >right click lock makes it so you can't delete or move until unlocked.
 
