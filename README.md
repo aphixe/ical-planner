@@ -5,6 +5,7 @@
 This repository contains a PySide6-based day-view calendar app (`ical.py`) and a couple of fixed copies that ensure the day view opens **centered on the current time** when the window appears.
 
 Total time per tag
+>Edit on windows you can go to preference, on mac goto python->preference you can change all the colors and you can set the mp3 sound for alerts on mac.(need to adjust it so alerts show on windows)
 
 > toggle, Magnet emoji, lets you snap to current time or nearest event block, it also snaps time in blocks. also good for laying out a bunch of blocks at a time.
 
