@@ -3,6 +3,7 @@
 This repository contains a PySide6-based day-view calendar app (`ical.py`) and a couple of fixed copies that ensure the day view opens **centered on the current time** when the window appears.
 
 > toggle, Magnet emoji, lets you snap to current time or nearest event block, it also snaps time in blocks. also good for laying out a bunch of blocks at a time.
+
 > toggle, Hour Glass lets you snap in increments of Time Size.
 >The Blue, white square when enabled lets you box select a group of time. you can then drag events around. 
 >The white note icon shows history of actions which should be able to revert from history.  Ctrl+Z, and Ctrl+Y windows undo, redo. command+z, Shift+command+Z(Mac)
