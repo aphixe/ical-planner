@@ -1,5 +1,7 @@
 # iCal Day View (PySide6)
 
+**NOTE ADD A uploads folder, i don't think i coded it to make one
+
 This repository contains a PySide6-based day-view calendar app (`ical.py`) and a couple of fixed copies that ensure the day view opens **centered on the current time** when the window appears.
 
 Total time per tag
@@ -36,6 +38,7 @@ Total time per tag
 The required third-party packages are already listed in `requirements.txt` (currently contains `PySide6`).
 
 ---
+**NOTE ADD A uploads folder, i don't think i coded it to make one
 
 ## Quick start (Unix / macOS)
 ```bash
