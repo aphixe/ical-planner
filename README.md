@@ -1,6 +1,13 @@
 # iCal Day View (PySide6)
 
-This repository contains a small PySide6-based day-view calendar app (`ical.py`) and a couple of fixed copies that ensure the day view opens **centered on the current time** when the window appears.
+This repository contains a PySide6-based day-view calendar app (`ical.py`) and a couple of fixed copies that ensure the day view opens **centered on the current time** when the window appears.
+
+> toggle, Magnet emoji, lets you snap to current time or nearest event block, it also snaps time in blocks. also good for laying out a bunch of blocks at a time.
+> toggle, Hour Glass lets you snap in increments of Time Size.
+>The Blue, white square when enabled lets you box select a group of time. you can then drag events around. 
+>The white note icon shows history of actions which should be able to revert from history.  Ctrl+Z, and Ctrl+Y windows undo, redo. command+z, Shift+command+Z(Mac)
+>right clicking edit. brings up edit event, this is where you can add titles, tags, change color. adjust time. notify(only tested on mac, I need to work on this for windows?), you can also repeat or make it always an event that happens.
+>right click lock makes it so you can't delete or move until unlocked.
 
 ## Files you'll find here
 - `ical.py` — original script you provided (backup before modifications).
