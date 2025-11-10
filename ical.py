@@ -22,14 +22,14 @@ import json
 from PySide6.QtCore import Qt, QRect, QRectF, QSize, QDate, QTime, QTimer, QPoint, QDateTime, QUrl
 from PySide6.QtGui import (
     QPainter, QPen, QBrush, QColor, QFont, QAction, QFontMetrics, QPixmap, QImage,
-    QShortcut, QKeySequence
+    QShortcut, QKeySequence, QFontDatabase
 )
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QScrollArea, QCalendarWidget,
     QDockWidget, QToolBar, QComboBox, QSlider, QLabel, QMenu, QDialog,
     QDialogButtonBox, QGridLayout, QPushButton, QMessageBox, QSpinBox, QCheckBox,
     QHBoxLayout, QLineEdit, QTimeEdit, QGroupBox, QFileDialog, QTabWidget,
-    QToolButton, QRubberBand, QListWidget, QListWidgetItem
+    QToolButton, QRubberBand, QListWidget, QListWidgetItem, QSystemTrayIcon, QStyle
 )
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 
@@ -81,6 +81,50 @@ def save_png_square_256(src_path: Path) -> Optional[str]:
         return str(Path("uploads") / name)
     except Exception:
         return None
+
+
+def _pick_font_family(candidates: List[str], fallback: str) -> str:
+    """Return the first candidate available on this system, otherwise default family."""
+    try:
+        for name in candidates:
+            if name and QFontDatabase.hasFamily(name):
+                return name
+    except Exception:
+        # QFontDatabase can fail if no GUI is initialised yet; fall through.
+        pass
+    default = QFont().defaultFamily()
+    return default if default else fallback
+
+
+def default_ui_font_family() -> str:
+    if sys.platform == "darwin":
+        candidates = [
+            ".AppleSystemUIFont",
+            "SF Pro Text",
+            "SF Pro Display",
+            "Helvetica Neue",
+            "Helvetica",
+        ]
+        return _pick_font_family(candidates, "Helvetica Neue")
+    if sys.platform.startswith("win"):
+        return _pick_font_family(["Segoe UI", "Calibri", "Arial"], "Segoe UI")
+    return _pick_font_family(["Noto Sans", "DejaVu Sans", "Sans Serif"], "Sans Serif")
+
+
+def default_emoji_font_family() -> str:
+    if sys.platform == "darwin":
+        return _pick_font_family(["Apple Color Emoji"], "Apple Color Emoji")
+    if sys.platform.startswith("win"):
+        return _pick_font_family(["Segoe UI Emoji", "Segoe UI Symbol"], "Segoe UI Emoji")
+    return _pick_font_family(["Noto Color Emoji", "EmojiOne Color"], "Noto Color Emoji")
+
+
+def make_ui_font(size: int = 9, weight: QFont.Weight = QFont.Weight.Normal,
+                 italic: bool = False, emoji: bool = False) -> QFont:
+    family = default_emoji_font_family() if emoji else default_ui_font_family()
+    font = QFont(family, size, weight)
+    font.setItalic(italic)
+    return font
 
 
 @dataclass
@@ -486,7 +530,7 @@ class EventEditDialog(QDialog):
     """Edit event/rule; supports weekly duplicates, convert to daily rule, notifications, and image attach/clear."""
     def __init__(self, title: str, color_hex: str, start_min: int, end_min: int, is_rule: bool,
                  time_24h: bool, image_rel: Optional[str], notify_offset: int, tag: str = "",
-                 existing_tags: Optional[List[str]] = None, parent=None):
+                 existing_tags: Optional[List[str]] = None, notifications_enabled: bool = False, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Edit Event")
         self.setModal(True)
@@ -507,6 +551,7 @@ class EventEditDialog(QDialog):
         self._existing_tags = sorted(cleaned_tags, key=lambda s: s.lower())
         self._tag_placeholder = "Choose existing tag…"
         self._tag_combo: Optional[QComboBox] = None
+        self._notifications_enabled = bool(notifications_enabled)
 
         v = QVBoxLayout(self)
 
@@ -562,7 +607,7 @@ class EventEditDialog(QDialog):
         tgrid.addWidget(QLabel("End:"),   1, 0); tgrid.addWidget(self.end_edit,   1, 1)
         v.addWidget(time_box)
 
-        # Notification (macOS only for now)
+        # Notification (platform dependent)
         notify_row = QHBoxLayout()
         notify_row.addWidget(QLabel("Notify:"))
         self.notify_combo = QComboBox()
@@ -583,9 +628,9 @@ class EventEditDialog(QDialog):
                 matched_index = idx
                 break
         self.notify_combo.setCurrentIndex(matched_index)
-        if sys.platform != "darwin":
+        if not self._notifications_enabled:
             self.notify_combo.setEnabled(False)
-            self.notify_combo.setToolTip("macOS notifications only")
+            self.notify_combo.setToolTip("Notifications supported on macOS and Windows only")
         notify_row.addWidget(self.notify_combo, 1)
         notify_row.addStretch(1)
         v.addLayout(notify_row)
@@ -1074,13 +1119,13 @@ class DayView(QWidget):
             pen = QPen(self.prefs.hour_line if is_hour else self.prefs.halfhour_line); pen.setWidth(2 if is_hour else 1)
             p.setPen(pen); p.drawLine(self.gutter, y, self.width() - 8, y)
             if is_hour:
-                p.setPen(QPen(self.prefs.gutter_text)); p.setFont(QFont("Segoe UI", 9))
+                p.setPen(QPen(self.prefs.gutter_text)); p.setFont(make_ui_font(9))
                 p.drawText(8, y + 4, self.min_to_hhmm(minute))
             else:
-                p.setPen(QPen(self.prefs.gutter_minor_text)); p.setFont(QFont("Segoe UI", 8))
+                p.setPen(QPen(self.prefs.gutter_minor_text)); p.setFont(make_ui_font(8))
                 p.drawText(8, y + 3, self.min_to_hhmm(minute))
 
-        p.setPen(QPen(self.prefs.snap_text)); p.setFont(QFont("Segoe UI", 8))
+        p.setPen(QPen(self.prefs.snap_text)); p.setFont(make_ui_font(8))
         size_text = f"{self.time_size_minutes} min"
         snap_text = "On" if self.snap_enabled else "Off"
         p.drawText(self.width() - 260, 12, f"Time Size: {size_text}  |  Snap: {snap_text}  |  Zoom: {int(self.px_per_min/BASE_PX_PER_MIN*100)}%")
@@ -1092,7 +1137,7 @@ class DayView(QWidget):
             y = self.minute_to_y(m)
             p.setPen(QPen(self.prefs.now_line, 2)); p.drawLine(self.gutter, y, self.width() - 8, y)
             p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-            box_font = QFont("Segoe UI", 9, QFont.Weight.Medium); p.setFont(box_font)
+            box_font = make_ui_font(9, QFont.Weight.Medium); p.setFont(box_font)
             txt = self.time_to_str(now); fm = QFontMetrics(box_font)
             pad_x, pad_y = 8, 4; rect_w = fm.horizontalAdvance(txt)+pad_x*2; rect_h = fm.height()+pad_y*2
             usable_left = self.gutter; usable_right = self.width() - 8
@@ -1565,7 +1610,7 @@ class UpcomingIndicator(QWidget):
 
         center_y = (y_now + y_event) / 2.0
         bubble_text = state["text"]
-        bubble_font = QFont("Segoe UI", 9, QFont.Weight.DemiBold)
+        bubble_font = make_ui_font(9, QFont.Weight.DemiBold)
         p.setFont(bubble_font)
         metrics = QFontMetrics(bubble_font)
         text_w = metrics.horizontalAdvance(bubble_text)
@@ -1728,7 +1773,7 @@ class EventWidget(QWidget):
 
         # Title (emoji ok)
         p.setPen(self.day_view.prefs.header_text)
-        p.setFont(QFont("Segoe UI Emoji", 9, QFont.Weight.Medium))
+        p.setFont(make_ui_font(9, QFont.Weight.Medium, emoji=True))
         base_title = (self.title or "(untitled)").strip()
         parts: List[str] = []
         if self.locked:
@@ -1764,7 +1809,7 @@ class EventWidget(QWidget):
                 remaining_text = f"REM {' '.join(parts)}"
 
         center_text = dur_text if not remaining_text else f"{dur_text}   {remaining_text}"
-        p.setFont(QFont("Segoe UI", 9, QFont.Weight.Medium))
+        p.setFont(make_ui_font(9, QFont.Weight.Medium))
         p.drawText(header_rect, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter, center_text)
 
         # Time range right
@@ -1993,7 +2038,9 @@ class EventWidget(QWidget):
             title=self.title, color_hex=qcolor_to_hex(self.color),
             start_min=self.start_min, end_min=self.end_min, is_rule=self.from_rule,
             time_24h=self.day_view.prefs.time_24h, image_rel=self.image_rel,
-            notify_offset=self.notify_offset, tag=self.tag, existing_tags=existing_tags, parent=self,
+            notify_offset=self.notify_offset, tag=self.tag, existing_tags=existing_tags,
+            notifications_enabled=bool(owner.notifications_supported()) if owner and hasattr(owner, "notifications_supported") else False,
+            parent=self,
         )
         if dlg.exec() != QDialog.DialogCode.Accepted: return
         payload = dlg.result_payload()
@@ -2114,7 +2161,7 @@ class MiniCalendar(QCalendarWidget):
 
     def set_prefs(self, prefs: Prefs):
         self._prefs = prefs
-        self.viewport().update()
+        self.update()
 
     def paintCell(self, painter: QPainter, rect: QRect, date: QDate):
         super().paintCell(painter, rect, date)
@@ -2146,6 +2193,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("iCal-ish Day Planner"); self.resize(1140, 800)
+        ensure_uploads()
         self.prefs = Prefs.from_config(PREF_PATH)
         if getattr(self.prefs, "smart_scale_enabled", False) and getattr(self.prefs, "magnetic_mode", False):
             self.prefs.magnetic_mode = False
@@ -2158,6 +2206,7 @@ class MainWindow(QMainWindow):
         self._notification_schedule_date: Optional[QDate] = None
         self.notification_player: Optional[QMediaPlayer] = None
         self.notification_audio: Optional[QAudioOutput] = None
+        self.tray_icon: Optional[QSystemTrayIcon] = None
         self._history: List[dict] = []
         self._history_index: int = -1
         self._history_freeze: bool = False
@@ -2583,7 +2632,34 @@ class MainWindow(QMainWindow):
         if self._notification_schedule_date != actual_today:
             self.refresh_notifications()
 
-    # notifications (macOS)
+    # notifications (platform dependent)
+    def notifications_supported(self) -> bool:
+        if sys.platform == "darwin":
+            return True
+        if sys.platform.startswith("win"):
+            return True
+        return False
+
+    def ensure_tray_icon(self) -> bool:
+        if not sys.platform.startswith("win"):
+            return False
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            return False
+        if self.tray_icon is None:
+            icon = self.windowIcon()
+            if icon.isNull():
+                icon = self.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon)
+            self.tray_icon = QSystemTrayIcon(icon, self)
+        icon = self.tray_icon.icon()
+        if icon.isNull():
+            icon = self.windowIcon()
+            if icon.isNull():
+                icon = self.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon)
+            self.tray_icon.setIcon(icon)
+        self.tray_icon.setVisible(True)
+        self.tray_icon.show()
+        return True
+
     def clear_notification_timers(self):
         for t in self.notification_timers:
             try:
@@ -2597,7 +2673,7 @@ class MainWindow(QMainWindow):
         self.clear_notification_timers()
         today = QDate.currentDate()
         self._notification_schedule_date = today
-        if sys.platform != "darwin":
+        if not self.notifications_supported():
             return
         now = QDateTime.currentDateTime()
         key = self.date_key(today)
@@ -2638,9 +2714,16 @@ class MainWindow(QMainWindow):
             msecs = now.msecsTo(trigger_dt)
             timer = QTimer(self)
             timer.setSingleShot(True)
-            timer.timeout.connect(lambda t=title, s=start_min, img=image_rel: self.show_mac_notification(t, s, img))
+            timer.timeout.connect(lambda t=title, s=start_min, img=image_rel: self.show_notification_for_event(t, s, img))
             timer.start(msecs)
             self.notification_timers.append(timer)
+
+    def show_notification_for_event(self, title: str, start_min: int, image_rel: Optional[str] = None,
+                                    sound_path: Optional[str] = None):
+        if sys.platform == "darwin":
+            self.show_mac_notification(title, start_min, image_rel=image_rel, sound_path=sound_path)
+        elif sys.platform.startswith("win"):
+            self.show_windows_notification(title, start_min, image_rel=image_rel, sound_path=sound_path)
 
     def show_mac_notification(self, title: str, start_min: int, image_rel: Optional[str] = None,
                               sound_path: Optional[str] = None):
@@ -2705,6 +2788,25 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
 
+    def show_windows_notification(self, title: str, start_min: int, image_rel: Optional[str] = None,
+                                  sound_path: Optional[str] = None):
+        if not sys.platform.startswith("win"):
+            return
+        if not self.ensure_tray_icon():
+            return
+        safe_start = max(0, min(24 * 60 - 1, int(start_min)))
+        event_title = (title or "Upcoming event").strip() or "Upcoming event"
+        time_text = self.day_view.min_to_hhmm(safe_start)
+        message = f"{event_title} starts at {time_text}"
+        if self.tray_icon is not None:
+            self.tray_icon.showMessage(
+                event_title,
+                message,
+                QSystemTrayIcon.MessageIcon.Information,
+                10000,
+            )
+        self.play_notification_sound(sound_path)
+
     def trigger_test_notification(self, sound_path: str, image_rel: Optional[str] = None):
         chosen = (sound_path or "").strip()
         if not image_rel:
@@ -2733,12 +2835,21 @@ class MainWindow(QMainWindow):
                 sound_path=chosen if chosen else None,
             )
             return
-        else:
-            QMessageBox.information(
-                self,
-                "Notification Test",
-                "Toast notifications require macOS. Playing audio only.",
+        if sys.platform.startswith("win"):
+            now = QTime.currentTime()
+            start_min = now.hour() * 60 + now.minute()
+            self.show_windows_notification(
+                "Preferences Test",
+                start_min,
+                image_rel=image_rel,
+                sound_path=chosen if chosen else None,
             )
+            return
+        QMessageBox.information(
+            self,
+            "Notification Test",
+            "Toast notifications require macOS or Windows. Playing audio only.",
+        )
         self.play_notification_sound(chosen if chosen else None)
 
     # rules (daily)
